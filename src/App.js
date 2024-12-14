@@ -31,19 +31,17 @@ const JsonTree = ({ data, name = "root" }) => {
 };
 
 const Grid = ({ rows, columns, gridData }) => {
-  // Initialize the grid with default colors and text
   const defaultGrid = Array.from({ length: rows * columns }, () => ({
     color: "#ddd",
     text: "",
   }));
 
-  // Update the grid based on the gridData
   gridData?.forEach((gridElement) => {
     const { Type, Coordinate } = gridElement;
     if (Coordinate && Coordinate.length === 2) {
-      const [x, y] = Coordinate;      
-      const flippedY = rows - 1 - y; // Flip Y to place (0,0) at the bottom-left
-      const index = flippedY * columns + x; // Convert (x, flippedY) to linear index
+      const [x, y] = Coordinate;
+      const flippedY = rows - 1 - y;
+      const index = flippedY * columns + x;
       defaultGrid[index] = {
         color: Type === 2 ? "blue" : "#ddd",
         text: `(${x}, ${y})`,
@@ -51,7 +49,6 @@ const Grid = ({ rows, columns, gridData }) => {
     }
   });
 
-  // Create the grid layout
   const gridStyle = {
     display: "grid",
     gridTemplateColumns: `repeat(${columns}, 64px)`,
@@ -84,47 +81,19 @@ const Grid = ({ rows, columns, gridData }) => {
   );
 };
 
-const DetailsWithSubTabs = ({ islands }) => {
+const DetailsWithSubTabs = ({ islands, onResetEnemies }) => {
   const subTabs = ["Islands", "Ships", "Research", "Trade Routes", "Storage", "Population", "Garrison"];
   const [activeSubTab, setActiveSubTab] = useState(subTabs[0]);
   const [selectedIslandIndex, setSelectedIslandIndex] = useState(0);
 
-  // Get the MapSize for the selected island
   const selectedIsland = useMemo(() => islands[selectedIslandIndex] || {}, [islands, selectedIslandIndex]);
   const mapSize = selectedIsland.MapSettings?.MapSize || [1, 1];
   const rows = mapSize[1];
   const columns = mapSize[0];
   const gridData = selectedIsland.Grid || {};
-  const depositPool = selectedIsland.MapSettings.DepositPool || {};
-  const [fertilities, setFertilities] = useState(Array(8).fill(false)); // Array of 8 booleans
-  const [deposits, setDeposits] = useState(Array(7).fill(false)); // Array of 7 booleans
-
-  useEffect(() => {
-    const fertilityPool = selectedIsland.MapSettings.FertilityPool || [];
-    const updatedFertilities = Array(8).fill(false);
-    if (fertilityPool.includes(11)) updatedFertilities[0] = true; // Checkbox 1 corresponds to value 11
-    // Add other mappings here if needed
-    setFertilities(updatedFertilities);
-  }, [selectedIsland]);
-
-  const toggleFertility = (index) => {
-    const updatedFertilities = [...fertilities];
-    updatedFertilities[index] = !updatedFertilities[index];
-    setFertilities(updatedFertilities);
-  };
-
-  const toggleDeposit = (index) => {
-    const updatedDeposits = [...deposits];
-    updatedDeposits[index] = !updatedDeposits[index];
-    setDeposits(updatedDeposits);
-  };
-
-  const fertilityLabels = ["Apples", "Wheat", "Hops", "Strawberries", "Honey", "Roses", "Grapes"];
-  const depositLabels = ["Copper", "Coal", "Halite", "Iron", "Marble"];
 
   return (
     <div>
-      {/* Island selection */}
       <div style={{ marginBottom: "10px" }}>
         <label htmlFor="island-select">Select Island:</label>
         <select
@@ -141,37 +110,19 @@ const DetailsWithSubTabs = ({ islands }) => {
         </select>
       </div>
 
-      {/* Fertilities checkboxes */}
-      <div style={{ marginBottom: "10px", display: "flex", flexWrap: "wrap", alignItems: "center" }}>
-        <label style={{ marginRight: "10px" }}>Fertilities:</label>
-        {fertilities.map((checked, index) => (
-          <label key={index} style={{ display: "flex", alignItems: "center", marginRight: "10px" }}>
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() => toggleFertility(index)}
-              style={{ marginRight: "5px" }}
-            />
-            {fertilityLabels[index]}
-          </label>
-        ))}
-      </div>
-
-      {/* Deposits checkboxes */}
-      <div style={{ marginBottom: "10px", display: "flex", flexWrap: "wrap", alignItems: "center" }}>
-        <label style={{ marginRight: "10px" }}>Deposits:</label>
-        {deposits.map((checked, index) => (
-          <label key={index} style={{ display: "flex", alignItems: "center", marginRight: "10px" }}>
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() => toggleDeposit(index)}
-              style={{ marginRight: "5px" }}
-            />
-            {depositLabels[index]}
-          </label>
-        ))}
-      </div>
+      <button
+        onClick={onResetEnemies}
+        style={{
+          marginBottom: "10px",
+          padding: "5px 10px",
+          backgroundColor: "red",
+          color: "white",
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
+        Reset Enemies
+      </button>
 
       <div style={{ display: "flex", marginBottom: "10px" }}>
         {subTabs.map((tab) => (
@@ -191,11 +142,10 @@ const DetailsWithSubTabs = ({ islands }) => {
         ))}
       </div>
 
-      {/* Sub-tab content */}
       {activeSubTab === "Islands" && (
         <div>
-          <h4>Selected Island: {islands[selectedIslandIndex]?.Name || `Unnamed Island ${selectedIslandIndex}`}</h4>          
-          <Grid rows={rows} columns={columns} gridData={gridData}/>
+          <h4>Selected Island: {islands[selectedIslandIndex]?.Name || `Unnamed Island ${selectedIslandIndex}`}</h4>
+          <Grid rows={rows} columns={columns} gridData={gridData} />
         </div>
       )}
       {activeSubTab !== "Islands" && (
@@ -219,16 +169,36 @@ const App = () => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
+      const rawContent = event.target.result;
+      console.log("Raw File Content:", rawContent); // Debugging line
       try {
-        const json = JSON.parse(event.target.result);
+        const json = JSON.parse(rawContent);
         setJsonData(json);
         setError("");
       } catch (err) {
+        console.error("Parsing Error:", err);
         setError("Failed to parse the file. Ensure it's valid JSON content.");
         setJsonData(null);
       }
     };
     reader.readAsText(file);
+  };
+
+  const resetEnemies = () => {
+    if (!jsonData) return;
+
+    const updatedData = { ...jsonData };
+
+    updatedData.IslandManager?.islands?.forEach((island) => {
+      island.GameEntities?.forEach((entity) => {
+        if (entity.components?.enemycamp) {
+          entity.components.enemycamp.Units.Count = 1;
+        }
+      });
+    });
+
+    setJsonData(updatedData);
+    alert("Enemy counts reset to 1!");
   };
 
   const islands = jsonData?.IslandManager?.islands || [];
@@ -244,7 +214,7 @@ const App = () => {
         </div>
       );
     } else if (activeTab === "details") {
-      return <DetailsWithSubTabs islands={islands} />;
+      return <DetailsWithSubTabs islands={islands} onResetEnemies={resetEnemies} />;
     } else if (activeTab === "tree") {
       return (
         <div>
@@ -261,7 +231,7 @@ const App = () => {
 
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      <h1>Paragon Pioneers 2 Saved Game Editor</h1>
+      <h1>Paragon Pioneers 2 Saved Game Editor (Updated)</h1>
       <input type="file" onChange={handleFileChange} accept=".json,.dat" />
       <br />
       <br />

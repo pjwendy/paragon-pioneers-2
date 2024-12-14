@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remove Camps</title>
+</head>
+<body>
+    <h1>Remove Camps Tool</h1>
+    <p>Select a JSON file to process and click "Remove Camps".</p>
+    <input type="file" id="fileInput" accept=".dat" />
+    <button id="processButton">Remove Camps</button>
+    <p id="status"></p>
+
+    <script>
+        document.getElementById("processButton").addEventListener("click", function () {
+            const fileInput = document.getElementById("fileInput");
+            const status = document.getElementById("status");
+
+            if (!fileInput.files[0]) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                try {
+                    // Parse the uploaded JSON file
+                    let savefile = JSON.parse(event.target.result);
+
+                    let camps = 0;
+					let units = 0;
+                    let changed = false;
+
+                    if (!savefile["IslandManager"] || !savefile["IslandManager"]["islands"]) {
+                        alert("Invalid file structure.");
+                        return;
+                    }
+
+                    for (let i = 0; i < savefile["IslandManager"]["islands"].length; i++) {                        
+                        for (let j = 0; j < savefile["IslandManager"]["islands"][i]["GameEntities"].length; j++) {                            
+                            if (savefile["IslandManager"]["islands"][i]["GameEntities"][j]["id"] === "SectorCamp") {                                
+                                if (Array.isArray(savefile["IslandManager"]["islands"][i]["GameEntities"][j]["components"]["enemycamp"]["Units"])) {
+                                    for (let k = 0; k < savefile["IslandManager"]["islands"][i]["GameEntities"][j]["components"]["enemycamp"]["Units"].length; k++) {
+                                        const unitType = parseInt(savefile["IslandManager"]["islands"][i]["GameEntities"][j]["components"]["enemycamp"]["Units"][k]["Type"], 10);
+
+                                        // Modify the unit if Type is less than 200
+                                        if (unitType < 200) {                          
+                                            savefile["IslandManager"]["islands"][i]["GameEntities"][j]["components"]["enemycamp"]["Units"][k]["Count"] = 1;
+											units++;
+                                            changed = true;
+                                        }
+                                    }
+                                    camps++;
+                                }
+                            }
+                        }
+                    }
+
+                    if (changed) {
+                        // Replace the content of the file in memory
+                        const modifiedJSON = JSON.stringify(savefile, null, 2);
+
+                        // Create a Blob and trigger a download to overwrite the original file
+                        const blob = new Blob([modifiedJSON], { type: "application/json" });
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(blob);
+                        link.download = fileInput.files[0].name; // Use the same file name
+                        link.click();
+
+                        status.textContent = `Processed: ${camps} camps ${units} units. File has been updated and downloaded.`;
+                    } else {
+                        status.textContent = "No changes were made.";
+                    }
+                } catch (e) {
+                    alert("Error processing file: " + e.message);
+                }
+            };
+
+            reader.readAsText(fileInput.files[0]);
+        });
+    </script>
+</body>
+</html>
